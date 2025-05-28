@@ -182,10 +182,12 @@ export GOOGLE_CLOUD_PROJECT=YOUR_PRODUCTION_PROJECT_ID
 2. ✅ Sets the correct project
 3. ✅ Enables required APIs (Cloud Build, Cloud Run, Secret Manager)
 4. ✅ Verifies Secret Manager secret exists
-5. ✅ Builds container image using Cloud Build
-6. ✅ Deploys to Cloud Run with proper configuration
-7. ✅ Sets environment variables and scaling parameters
-8. ✅ Outputs the service URL
+5. ✅ Grants Cloud Run service account access to Secret Manager secret
+6. ✅ Builds container image using Cloud Build
+7. ✅ Deploys to Cloud Run with proper configuration
+8. ✅ Sets environment variables and scaling parameters
+9. ✅ Grants deploying user permission to invoke the service
+10. ✅ Outputs the service URL and test commands
 
 ### Step 4.4: Deployment Output
 

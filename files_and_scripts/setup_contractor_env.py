@@ -263,6 +263,31 @@ class ContractorEnvironmentSetup:
             ]
             self._run_command(cmd, "Failed to create Secret Manager secret")
         
+        # Grant Cloud Run service account access to the secret
+        logger.info("Granting Cloud Run service account access to Secret Manager secret")
+        try:
+            # Get project number for Cloud Run service account
+            cmd = [
+                "gcloud", "projects", "describe", self.config.project_id,
+                "--format", "value(projectNumber)"
+            ]
+            project_number = self._run_command(cmd, "Failed to get project number").strip()
+            
+            cloud_run_sa = f"{project_number}-compute@developer.gserviceaccount.com"
+            logger.info(f"Granting access to Cloud Run service account: {cloud_run_sa}")
+            
+            cmd = [
+                "gcloud", "secrets", "add-iam-policy-binding", secret_name,
+                "--member", f"serviceAccount:{cloud_run_sa}",
+                "--role", "roles/secretmanager.secretAccessor",
+                "--project", self.config.project_id
+            ]
+            self._run_command(cmd, "Failed to grant Cloud Run service account access to secret")
+            
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Failed to grant Cloud Run service account access: {e}")
+            logger.warning("You may need to grant this permission manually during deployment")
+        
         logger.info(f"Secret Manager secret {secret_name} ready")
     
     def _create_bigquery_dataset(self):
@@ -608,6 +633,52 @@ That's it! Your code will automatically:
 - ✅ Connect to their BigQuery datasets
 - ✅ Deploy to their Cloud Run environment
 - ✅ Scale automatically based on demand
+
+### Testing Your Deliverable
+
+Run the comprehensive test suite to verify everything is working:
+
+```bash
+python test_deployment.py
+```
+
+This will test:
+- ✅ All required packages can be imported
+- ✅ Credentials load correctly
+- ✅ Docker files are present and valid
+- ✅ BigQuery connection works
+- ✅ Flask app starts and responds to health checks
+
+All tests must pass before submitting your deliverable.
+
+### 🚀 **Deploying to Cloud Run (Development Testing)**
+
+To test your deployment in this development environment:
+
+```bash
+# Set the project environment variable
+export GOOGLE_CLOUD_PROJECT={self.config.project_id}
+
+# Deploy to Cloud Run
+./deploy.sh
+```
+
+The deployment script will automatically:
+- ✅ Set the correct quota project to avoid billing warnings
+- ✅ Enable required APIs
+- ✅ Verify Secret Manager configuration
+- ✅ Build and deploy your container
+- ✅ Grant you permission to invoke the service
+- ✅ Provide authenticated curl commands for testing
+
+After deployment, you can test the service with:
+```bash
+# Health check
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" SERVICE_URL/health
+
+# Process endpoint
+curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" SERVICE_URL/process
+```
 """
         
         with open(os.path.join(repo_path, "README.md"), 'w') as f:
@@ -696,8 +767,16 @@ if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q
     exit 1
 fi
 
+# Get the current authenticated user
+CURRENT_USER=$(gcloud auth list --filter=status:ACTIVE --format="value(account)")
+echo "🔐 Current authenticated user: $CURRENT_USER"
+
 # Set the project
 gcloud config set project $PROJECT_ID
+
+# Set quota project to match deployment project to avoid quota issues
+echo "🔧 Setting quota project to match deployment project..."
+gcloud auth application-default set-quota-project $PROJECT_ID
 
 # Enable required APIs
 echo "📋 Enabling required APIs..."
@@ -714,13 +793,24 @@ if ! gcloud secrets describe $SECRET_NAME --project=$PROJECT_ID >/dev/null 2>&1;
     exit 1
 fi
 
-# Build and deploy to Cloud Run
+# Grant Cloud Run service account access to the secret
+echo "🔑 Granting Cloud Run service account access to Secret Manager..."
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+CLOUD_RUN_SA="${{PROJECT_NUMBER}}-compute@developer.gserviceaccount.com"
+echo "Cloud Run service account: $CLOUD_RUN_SA"
+
+gcloud secrets add-iam-policy-binding $SECRET_NAME \\
+    --member="serviceAccount:$CLOUD_RUN_SA" \\
+    --role="roles/secretmanager.secretAccessor" \\
+    --project=$PROJECT_ID
+
+# Build and deploy to Cloud Run (REQUIRES AUTHENTICATION)
 echo "🏗️  Building and deploying to Cloud Run..."
 gcloud run deploy $SERVICE_NAME \\
     --source . \\
     --platform managed \\
     --region $REGION \\
-    --allow-unauthenticated \\
+    --no-allow-unauthenticated \\
     --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID \\
     --memory 1Gi \\
     --cpu 1 \\
@@ -728,14 +818,27 @@ gcloud run deploy $SERVICE_NAME \\
     --max-instances 10 \\
     --port 8080
 
+# Grant the current user permission to invoke the service
+echo "🔑 Granting Cloud Run Invoker permission to $CURRENT_USER..."
+gcloud run services add-iam-policy-binding $SERVICE_NAME \\
+    --region=$REGION \\
+    --member="user:$CURRENT_USER" \\
+    --role="roles/run.invoker"
+
 # Get the service URL
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)")
 
 echo "✅ Deployment completed successfully!"
 echo "🌐 Service URL: $SERVICE_URL"
+echo "🔐 Authentication: REQUIRED"
+echo "👤 Authorized user: $CURRENT_USER"
 echo ""
-echo "To test the deployment:"
-echo "curl $SERVICE_URL/health"
+echo "To test the deployment with authentication:"
+echo "# Health check:"
+echo "curl -H \\"Authorization: Bearer \\$(gcloud auth print-identity-token)\\" $SERVICE_URL/health"
+echo ""
+echo "# Process endpoint:"
+echo "curl -X POST -H \\"Authorization: Bearer \\$(gcloud auth print-identity-token)\\" $SERVICE_URL/process"
 """
         
         deploy_script_path = os.path.join(repo_path, "deploy.sh")
