@@ -39,18 +39,24 @@ This tool automates the entire process programmatically.
 ## Files in This Repository
 
 ### Core Tools
-- **`setup_contractor_env.py`** - Main automation script that sets up everything
-- **`cleanup_contractor_env.py`** - Removes contractor environments when projects are done
-- **`contractor_config_template.yaml`** - Configuration template for each contractor
+- **`files_and_scripts/setup_contractor_env.py`** - Main automation script that sets up everything
+- **`files_and_scripts/cleanup_contractor_env.py`** - Removes contractor environments when projects are done
+- **`config/contractor_config_simple_template.yaml`** - Configuration template for each contractor
 
 ### Setup & Dependencies
-- **`setup_prerequisites.sh`** - Installs required tools (gcloud, gh CLI, Python packages)
+- **`files_and_scripts/setup_prerequisites.sh`** - Installs required tools (gcloud, gh CLI, Python packages)
+- **`files_and_scripts/setup_master_config.py`** - Interactive setup for master configuration
+- **`files_and_scripts/example_setup.sh`** - Complete example workflow script
 - **`requirements.txt`** - Python dependencies for the setup tools
 
-### Example Files (Your Existing Code)
-- **`example_of_type_of_script_contractor_would_edit.py`** - Example script that gets copied to contractor repos
-- **`example_data_transfer_from_prod_to_dev.sql`** - Example of data transfer with anonymization
-- **`canonical_company_names/`** - Directory containing company name anonymization data
+### Configuration
+- **`config/master_config.yaml`** - Your authentication IDs and organizational defaults (created by setup)
+- **`config/contractor_config_simple_template.yaml`** - Template for contractor-specific configs
+
+### Reference Files
+- **`initial_reference/example_of_type_of_script_contractor_would_edit.py`** - Example script that gets copied to contractor repos
+- **`initial_reference/example_data_transfer_from_prod_to_dev.sql`** - Example of data transfer with anonymization
+- **`initial_reference/canonical_company_names/`** - Directory containing company name anonymization data
 
 ## Quick Start
 
@@ -58,48 +64,46 @@ This tool automates the entire process programmatically.
 
 ```bash
 # Install prerequisites
-chmod +x setup_prerequisites.sh
-./setup_prerequisites.sh
+chmod +x files_and_scripts/setup_prerequisites.sh
+./files_and_scripts/setup_prerequisites.sh
 
 # Authenticate with Google Cloud
 gcloud auth login
 gcloud auth application-default login
 gcloud config set project YOUR_MAIN_PROJECT_ID
 
-# Get your billing account ID
-gcloud billing accounts list
-
 # Authenticate with GitHub
 gh auth login
+
+# Set up your master configuration (interactive)
+python3 files_and_scripts/setup_master_config.py
 ```
 
 ### 2. Set Up a Contractor Environment
 
 ```bash
-# Copy the configuration template
-cp contractor_config_template.yaml john_smith_config.yaml
+# Copy the simple contractor template
+cp config/contractor_config_simple_template.yaml config/john_smith.yaml
 
-# Edit the configuration file with contractor details
+# Edit the contractor file (only need contractor-specific info!)
 # - contractor_name: "John Smith"
-# - github_username: "johnsmith123"  
-# - project_id: "contractor-john-smith-dev-2024"
-# - billing_account_id: "YOUR_BILLING_ACCOUNT_ID"
+# - github_username: "johnsmith123"
 
 # Run the setup (dry run first to see what will happen)
-python3 setup_contractor_env.py --config john_smith_config.yaml --dry-run
+python3 files_and_scripts/setup_contractor_env.py --config config/john_smith.yaml --dry-run
 
 # Actually create the environment
-python3 setup_contractor_env.py --config john_smith_config.yaml
+python3 files_and_scripts/setup_contractor_env.py --config config/john_smith.yaml
 ```
 
 ### 3. When Project is Complete
 
 ```bash
 # List all contractor projects
-python3 cleanup_contractor_env.py --list-projects
+python3 files_and_scripts/cleanup_contractor_env.py --list-projects
 
 # Clean up a specific contractor environment
-python3 cleanup_contractor_env.py --project-id contractor-john-smith-dev-2024
+python3 files_and_scripts/cleanup_contractor_env.py --project-id contractor-john-smith-dev-2024
 ```
 
 ## How It Works
@@ -269,22 +273,50 @@ Each contractor gets:
 
 ## Example Workflow
 
+## Virtual Environment Setup
+
+```bash
+# Create a virtual environment
+python -m venv venv
+
+# Activate it
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+- May 28, 2025 1:54 PM done
+
+
 ```bash
 # 1. One-time setup
-./setup_prerequisites.sh
+./files_and_scripts/setup_prerequisites.sh
 gcloud auth login
 gh auth login
 
+
+
 # 2. For each new contractor
-cp contractor_config_template.yaml alice_config.yaml
-# Edit alice_config.yaml with her details
-python3 setup_contractor_env.py --config alice_config.yaml
+cp config/contractor_config_simple_template.yaml config/alice.yaml
+# Edit config/alice.yaml with her details
+python3 files_and_scripts/setup_contractor_env.py --config config/alice.yaml
 
 # 3. Contractor works in their environment
 # (They receive GitHub repo invitation and instructions)
 
 # 4. When project is complete
-python3 cleanup_contractor_env.py --project-id contractor-alice-dev-2024
+python3 files_and_scripts/cleanup_contractor_env.py --project-id contractor-alice-dev-2024
 ```
 
 This tool transforms a manual, error-prone process into a reliable, automated workflow that scales as you work with more contractors while maintaining security and data privacy.
+
+## Virtual Environment Setup
+
+```bash
+# Create a virtual environment
+python -m venv venv
+
+# Activate it
+source venv/bin/activate
+pip install -r requirements.txt
+```
+

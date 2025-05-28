@@ -1,3 +1,13 @@
+Goal update May 28, 2025 2:23 PM
+
+My code runs in CloudRun in the client GCP environment. Specifically I use CloudBuild linked to the GH repo.
+
+When the contractor delivers me code, I want to be able to plug it right into the client prod environment. 
+That means I want it to use secret manager to fetch credentials. When I port it over to the client environment it will use secret manager to access credentials with the same secret name. 
+
+The ability to port the contractor work over to the client environment is a next step, first we want to allow the contractor to build something that will be easily ported over to the client environment.
+
+
 # Goal
 I want to create a setup where external  contractor, so I don't able to work in a Google cloud platform environment that is very similar to my production environment so that they are able to develop code, fix bugs  and I can then easily transfer that over to my production environment.
 I want to be able to do this as programaticaly as possible
