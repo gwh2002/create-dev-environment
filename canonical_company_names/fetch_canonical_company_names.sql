@@ -1,0 +1,1 @@
+select * from `assembled-wh.warehouse.canonical_company_names_sa`

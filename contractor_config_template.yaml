@@ -1,0 +1,29 @@
+# Contractor Environment Configuration Template
+# Copy this file and fill in the details for each contractor
+
+# REQUIRED: Contractor-specific information
+contractor_name: "John Smith"  # Full name of the contractor
+github_username: "johnsmith123"  # Their GitHub username
+project_id: "contractor-john-smith-dev-2024"  # Unique GCP project ID (must be globally unique)
+project_name: "Contractor John Smith Development Environment"  # Human-readable project name
+billing_account_id: "01234567-89ABCD-EFGHIJ"  # Your GCP billing account ID
+
+# DEFAULTS: Your organization settings (modify as needed)
+source_project: "assembled-wh"  # Source GCP project to copy data from
+source_dataset: "warehouse"    # Source BigQuery dataset
+target_dataset: "warehouse"    # Target BigQuery dataset in contractor project
+
+# Tables to copy from production (with anonymization)
+tables_to_copy:
+  - "ifms"
+  - "ifms_consolidated"
+  - "ifms_wa"
+  - "ifms_consolidated_ttm_avg_data"
+
+# OPTIONAL: Add additional tables if needed for specific contractors
+# tables_to_copy:
+#   - "ifms"
+#   - "ifms_consolidated"
+#   - "ifms_wa"
+#   - "ifms_consolidated_ttm_avg_data"
+#   - "custom_table_for_this_contractor" 

@@ -1,0 +1,37 @@
+# Goal
+I want to create a setup where external  contractor, so I don't able to work in a Google cloud platform environment that is very similar to my production environment so that they are able to develop code, fix bugs  and I can then easily transfer that over to my production environment.
+I want to be able to do this as programaticaly as possible
+
+# Prior Approach
+
+
+ Craig a new project in google cloud
+ copy over to big query tables from the production environment to the test department as a part of copying the main tables. I'm also anonymizing the company names on a  name replacement look up see canonical_company_names directory for more detail
+ I can create a service account that has owner permissions.  basically, I want the service account to be able to do anything it wants within the project like for example, set up a Cloud run environment
+ I then generate a service account key – json file
+ then I create the get up repo, and I saved the service account json directly in the repo
+
+Set up a new private github repo
+Get the github name fo the contractor
+Upload the files I want them to work with to the repo
+for example see example_of_type_of_script_contractor_would_edit.py
+Also, change all the variable references e.g. to bigqueyr tables to match the new dev environment
+
+
+# Tables I want to copy
+
+`assembled-wh.warehouse.ifms`
+`assembled-wh.warehouse.ifms_consolidated`
+`assembled-wh.warehouse.ifms_wa`
+`assembled-wh.warehouse.ifms_consolidated_ttm_avg_data`
+
+
+
+
+
+
+
+
+
+
+
