@@ -82,10 +82,10 @@ python3 files_and_scripts/setup_master_config.py
 ### 2. Set Up a Contractor Environment
 
 ```bash
-# Edit the contractor config file directly
-# config/contractor_config.yaml
+# Copy the contractor config template and fill in the details
+cp config/contractor_config.yaml config/new_contractor_config.yaml
 
-# You only need to get two pieces of information from the contractor to put in the config yaml:
+# Edit the new file with contractor information:
 # - contractor_name: "John Smith"
 # - github_username: "johnsmith123"
 # (All other organizational defaults come from master_config.yaml)
@@ -94,20 +94,180 @@ python3 files_and_scripts/setup_master_config.py
 # (Based on project_id_prefix + contractor name + project_id_suffix from master_config.yaml)
 
 # Run the setup (dry run first to see what will happen)
-python3 files_and_scripts/setup_contractor_env.py --config config/contractor_config.yaml --dry-run
+python3 files_and_scripts/setup_contractor_env.py --config config/new_contractor_config.yaml --dry-run
 
 # Actually create the environment
-python3 files_and_scripts/setup_contractor_env.py --config config/contractor_config.yaml
+python3 files_and_scripts/setup_contractor_env.py --config config/new_contractor_config.yaml
 ```
 
 ### 3. When Project is Complete
 
 ```bash
-# List all contractor projects
+# List all contractor projects (with rich information from manifest)
 python3 files_and_scripts/cleanup_contractor_env.py --list-projects
 
-# Clean up a specific contractor environment (project ID is auto-generated)
+# Clean up by contractor name (intelligent matching)
+python3 files_and_scripts/cleanup_contractor_env.py --contractor-name "Jim Smith" --dry-run
+
+# Or clean up by project ID (if you know it)
 python3 files_and_scripts/cleanup_contractor_env.py --project-id partner-alice-dev-2025
+```
+
+## Systematized Workflow & Intelligent Tracking
+
+This tool now includes a sophisticated manifest-based tracking system that makes contractor environment management robust and systematic.
+
+### Manifest-Based Tracking
+
+The tool automatically maintains a `contractor_environments.yaml` manifest file that tracks:
+- **Environment Details**: Project IDs, contractor names, creation dates
+- **Resource Information**: GitHub repos, service accounts, tables copied
+- **Status Tracking**: Active, completed, or deleted environments
+- **Audit Trail**: Complete history of all contractor environments
+
+### Intelligent Discovery & Cleanup
+
+The cleanup system uses multiple discovery methods with graceful fallback:
+
+1. **Primary Method**: Manifest-based lookup (fast, accurate, rich metadata)
+2. **Fallback Method**: GCloud discovery (works even if manifest is missing)
+3. **Interactive Selection**: When multiple matches or unclear naming
+
+### Enhanced Commands
+
+#### Environment Listing
+```bash
+# Rich listing with creation dates and status
+python3 files_and_scripts/cleanup_contractor_env.py --list-projects
+
+# Output example:
+# Project ID                          Contractor           Created      Source    
+# --------------------------------------------------------------------------------
+# partner-jim-smith-dev-2025          Jim Smith            2025-05-29   manifest  
+# partner-alice-jones-dev-2025        Alice Jones          2025-05-28   manifest
+```
+
+#### Smart Contractor Lookup
+```bash
+# Find environments by contractor name
+python3 files_and_scripts/cleanup_contractor_env.py --contractor-name "Jim Smith"
+
+# Partial name matching with interactive selection
+python3 files_and_scripts/cleanup_contractor_env.py --contractor-name "John"
+# Shows menu: "1. John Smith  2. John Doe  3. Johnny Cash"
+```
+
+#### Manifest Management
+```bash
+# View manifest statistics
+python3 files_and_scripts/contractor_manifest.py --stats
+
+# Search environments
+python3 files_and_scripts/contractor_manifest.py --search "smith"
+
+# List active environments only
+python3 files_and_scripts/contractor_manifest.py --active
+
+# Export to CSV for reporting
+python3 files_and_scripts/contractor_manifest.py --export-csv contractor_report.csv
+```
+
+### Robust Edge Case Handling
+
+The systematized approach handles various edge cases:
+
+- **Manifest missing/corrupted** → Falls back to GCloud discovery
+- **Resources manually renamed** → Shows user selection menu
+- **Multiple contractors with similar names** → Interactive disambiguation
+- **Partial cleanup failures** → Updates manifest with failure status
+- **Legacy environments** → Can be added to manifest retroactively
+
+### Complete Lifecycle Automation
+
+```bash
+# 1. Setup automatically adds to manifest
+python3 files_and_scripts/setup_contractor_env.py --config config/contractor_config.yaml
+
+# 2. Track and query environments
+python3 files_and_scripts/contractor_manifest.py --list
+
+# 3. Cleanup automatically updates manifest
+python3 files_and_scripts/cleanup_contractor_env.py --contractor-name "Jim Smith"
+```
+
+### Benefits of the Systematized Approach
+
+1. **Reliability**: No more manually tracking project IDs or guessing naming patterns
+2. **Auditability**: Complete history of all contractor environments
+3. **Team Collaboration**: Shared manifest file in git repo for team visibility
+4. **Graceful Degradation**: Always works even if components fail
+5. **Future-Proof**: Handles naming convention changes and organizational evolution
+
+### Migration from Manual Tracking
+
+If you have existing contractor environments, you can add them to the manifest:
+
+```python
+# Example: Add existing environment to manifest
+from files_and_scripts.contractor_manifest import ContractorManifest, ContractorEnvironment
+from datetime import datetime
+
+manifest = ContractorManifest()
+env = ContractorEnvironment(
+    contractor_name="Existing Contractor",
+    project_id="their-project-id",
+    # ... other details
+)
+manifest.add_environment(env)
+```
+
+## Cost Management
+
+- Each contractor environment will incur GCP costs (BigQuery storage, compute, etc.)
+- Monitor costs through the GCP billing console
+- Clean up environments promptly when projects are complete
+- Consider setting up billing alerts for contractor projects
+- Use the manifest reporting features to track environment lifecycle costs
+
+## Complete Example Workflow
+
+```bash
+# 1. One-time setup
+./files_and_scripts/setup_prerequisites.sh
+gcloud auth login
+gh auth login
+python3 files_and_scripts/setup_master_config.py
+
+# 2. For each new contractor
+# Edit config/contractor_config.yaml with contractor details:
+# - contractor_name: "John Smith"  
+# - github_username: "johnsmith123"
+
+# Preview what will be created
+python3 files_and_scripts/setup_contractor_env.py --config config/contractor_config.yaml --dry-run
+
+# Create the environment
+python3 files_and_scripts/setup_contractor_env.py --config config/contractor_config.yaml
+
+# 3. Track environments
+python3 files_and_scripts/contractor_manifest.py --list
+
+# 4. When project is complete
+python3 files_and_scripts/cleanup_contractor_env.py --contractor-name "John Smith" --dry-run
+python3 files_and_scripts/cleanup_contractor_env.py --contractor-name "John Smith"
+```
+
+This tool transforms a manual, error-prone process into a reliable, automated workflow that scales as you work with more contractors while maintaining security and data privacy through intelligent tracking and systematic management.
+
+## Virtual Environment Setup
+
+```bash
+# Create a virtual environment
+python -m venv venv
+
+# Activate it
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ## How It Works
@@ -236,59 +396,3 @@ Each contractor gets:
 - Check the log files created during setup (named `contractor_setup_TIMESTAMP.log`)
 - Use the `--dry-run` flag to see what would happen without making changes
 - Verify all prerequisites are installed with `./setup_prerequisites.sh`
-
-## Cost Management
-
-- Each contractor environment will incur GCP costs (BigQuery storage, compute, etc.)
-- Monitor costs through the GCP billing console
-- Clean up environments promptly when projects are complete
-- Consider setting up billing alerts for contractor projects
-
-## Example Workflow
-
-## Virtual Environment Setup
-
-```bash
-# Create a virtual environment
-python -m venv venv
-
-# Activate it
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-- May 28, 2025 1:54 PM done
-
-
-```bash
-# 1. One-time setup
-./files_and_scripts/setup_prerequisites.sh
-gcloud auth login
-gh auth login
-
-
-
-# 2. For each new contractor
-# Edit config/contractor_config.yaml with contractor details
-python3 files_and_scripts/setup_contractor_env.py --config config/contractor_config.yaml
-
-# 3. Contractor works in their environment
-# (They receive GitHub repo invitation and instructions)
-
-# 4. When project is complete
-python3 files_and_scripts/cleanup_contractor_env.py --project-id partner-alice-dev-2025
-```
-
-This tool transforms a manual, error-prone process into a reliable, automated workflow that scales as you work with more contractors while maintaining security and data privacy.
-
-## Virtual Environment Setup
-
-```bash
-# Create a virtual environment
-python -m venv venv
-
-# Activate it
-source venv/bin/activate
-pip install -r requirements.txt
-```
-

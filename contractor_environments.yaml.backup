@@ -1,0 +1,19 @@
+partner-jim-smith-dev-2025:
+  contractor_name: Jim Smith
+  project_id: partner-jim-smith-dev-2025
+  project_name: Jim Smith Dev Env
+  github_username: gregoryhills
+  github_repo_name: contractor-jim-smith-dev
+  service_account_email: contractor-jim-smith@partner-jim-smith-dev-2025.iam.gserviceaccount.com
+  creation_date: '2025-05-29T05:00:00'
+  status: active
+  billing_account_id: 014E4A-77F028-29F3D4
+  source_project: assembled-wh
+  target_dataset: warehouse
+  tables_copied:
+  - ifms
+  - ifms_consolidated
+  - ifms_wa
+  - ifms_consolidated_ttm_avg_data
+  cleanup_date: null
+  notes: null

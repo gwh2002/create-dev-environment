@@ -2,7 +2,6 @@
 config/master_config.yaml
 config/*_config.yaml
 !config/*_template.yaml
-!config/contractor_config_simple_template.yaml
 
 # Service account keys
 service-account-key.json
