@@ -10,8 +10,8 @@ graph TD
     C -->|Yes| E[🔄 Transfer to Your Org]
     
     E --> F[📂 Clone Repository]
-    F --> G[🏢 Create Org Repository]
-    G --> H[📤 Push to Your Org]
+    F --> G[🏢 Create Client Org Repository]
+    G --> H[📤 Push to Client Org GitHub]
     
     H --> I[🔐 Configure Secrets]
     I --> J[👤 Create Service Account]

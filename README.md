@@ -41,7 +41,7 @@ This tool automates the entire process programmatically.
 ### Core Tools
 - **`files_and_scripts/setup_contractor_env.py`** - Main automation script that sets up everything
 - **`files_and_scripts/cleanup_contractor_env.py`** - Removes contractor environments when projects are done
-- **`config/contractor_config_simple_template.yaml`** - Configuration template for each contractor
+- **`config/contractor_config.yaml`** - Configuration template for each contractor
 
 ### Setup & Dependencies
 - **`files_and_scripts/setup_prerequisites.sh`** - Installs required tools (gcloud, gh CLI, Python packages)
@@ -51,7 +51,7 @@ This tool automates the entire process programmatically.
 
 ### Configuration
 - **`config/master_config.yaml`** - Your authentication IDs and organizational defaults (created by setup)
-- **`config/contractor_config_simple_template.yaml`** - Template for contractor-specific configs
+- **`config/contractor_config.yaml`** - Template for contractor-specific configs
 
 ### Reference Files
 - **`initial_reference/example_of_type_of_script_contractor_would_edit.py`** - Example script that gets copied to contractor repos
@@ -82,18 +82,22 @@ python3 files_and_scripts/setup_master_config.py
 ### 2. Set Up a Contractor Environment
 
 ```bash
-# Copy the simple contractor template
-cp config/contractor_config_simple_template.yaml config/john_smith.yaml
+# Edit the contractor config file directly
+# config/contractor_config.yaml
 
-# Edit the contractor file (only need contractor-specific info!)
+# You only need to get two pieces of information from the contractor to put in the config yaml:
 # - contractor_name: "John Smith"
 # - github_username: "johnsmith123"
+# (All other organizational defaults come from master_config.yaml)
+
+# The project ID will be auto-generated as: partner-john-smith-dev-2025
+# (Based on project_id_prefix + contractor name + project_id_suffix from master_config.yaml)
 
 # Run the setup (dry run first to see what will happen)
-python3 files_and_scripts/setup_contractor_env.py --config config/john_smith.yaml --dry-run
+python3 files_and_scripts/setup_contractor_env.py --config config/contractor_config.yaml --dry-run
 
 # Actually create the environment
-python3 files_and_scripts/setup_contractor_env.py --config config/john_smith.yaml
+python3 files_and_scripts/setup_contractor_env.py --config config/contractor_config.yaml
 ```
 
 ### 3. When Project is Complete
@@ -102,8 +106,8 @@ python3 files_and_scripts/setup_contractor_env.py --config config/john_smith.yam
 # List all contractor projects
 python3 files_and_scripts/cleanup_contractor_env.py --list-projects
 
-# Clean up a specific contractor environment
-python3 files_and_scripts/cleanup_contractor_env.py --project-id contractor-john-smith-dev-2024
+# Clean up a specific contractor environment (project ID is auto-generated)
+python3 files_and_scripts/cleanup_contractor_env.py --project-id partner-alice-dev-2025
 ```
 
 ## How It Works
@@ -132,69 +136,38 @@ Contractor Development Work
 
 ```sql
 -- Original production data
-company_name: "Acme Corp Private Ltd"
+company_name: "Away Luggage"
 revenue: 5000000
 
 -- Anonymized contractor data  
-company_name: "Company_A"
+company_name: "Eli Lilly"
 revenue: 5000000
 ```
 
 ## Configuration Options
 
-All configuration is now explicitly defined in the YAML file. Copy `contractor_config_template.yaml` and modify the values as needed.
+All configuration uses a simplified approach: contractor-specific information goes in the contractor config file, while organizational defaults come from `master_config.yaml`.
 
-### Required Fields (Contractor-Specific)
+### Required Fields (In Contractor Config File)
 - `contractor_name`: Full name of the contractor
 - `github_username`: Their GitHub username for repository access
-- `project_id`: Unique GCP project ID (must be globally unique)
-- `project_name`: Human-readable project name
-- `billing_account_id`: Your GCP billing account ID
 
-### Required Fields (Organization Defaults)
+### Auto-Generated Values
+- `project_id`: Automatically generated as `{prefix}-{contractor-name}-{suffix}` 
+  - Example: "John Smith" becomes `partner-john-smith-dev-2025`
+  - Based on `project_id_prefix` and `project_id_suffix` from master_config.yaml
+- `project_name`: Auto-generated from template in master_config.yaml
+
+### Optional Overrides (In Contractor Config File)
+- `tables_to_copy`: Custom list of tables (uses defaults from master_config.yaml if not specified)
+- `contractor_type`: If you've defined contractor types in master_config.yaml
+
+### Organizational Defaults (From master_config.yaml)
+- `billing_account_id`: Your GCP billing account ID
 - `source_project`: Source GCP project to copy data from
 - `source_dataset`: Source BigQuery dataset
 - `target_dataset`: Target BigQuery dataset in contractor project
-- `tables_to_copy`: List of tables to copy from production
-
-### Example Configuration
-
-```yaml
-# Contractor-specific information
-contractor_name: "John Smith"
-github_username: "johnsmith123"
-project_id: "contractor-john-smith-dev-2024"
-project_name: "Contractor John Smith Development Environment"
-billing_account_id: "01234567-89ABCD-EFGHIJ"
-
-# Your organization defaults
-source_project: "assembled-wh"
-source_dataset: "warehouse"
-target_dataset: "warehouse"
-tables_to_copy:
-  - "ifms"
-  - "ifms_consolidated"
-  - "ifms_wa"
-  - "ifms_consolidated_ttm_avg_data"
-```
-
-### Customizing for Different Contractors
-
-You can easily customize the configuration for specific contractors:
-
-```yaml
-# For a contractor who needs additional tables
-tables_to_copy:
-  - "ifms"
-  - "ifms_consolidated"
-  - "ifms_wa"
-  - "ifms_consolidated_ttm_avg_data"
-  - "special_analysis_table"
-
-# For a contractor working with a different source project
-source_project: "my-other-project"
-source_dataset: "analytics"
-```
+- `tables_to_copy`: Default list of tables to copy from production
 
 ## What Contractors Receive
 
@@ -296,15 +269,14 @@ gh auth login
 
 
 # 2. For each new contractor
-cp config/contractor_config_simple_template.yaml config/alice.yaml
-# Edit config/alice.yaml with her details
-python3 files_and_scripts/setup_contractor_env.py --config config/alice.yaml
+# Edit config/contractor_config.yaml with contractor details
+python3 files_and_scripts/setup_contractor_env.py --config config/contractor_config.yaml
 
 # 3. Contractor works in their environment
 # (They receive GitHub repo invitation and instructions)
 
 # 4. When project is complete
-python3 files_and_scripts/cleanup_contractor_env.py --project-id contractor-alice-dev-2024
+python3 files_and_scripts/cleanup_contractor_env.py --project-id partner-alice-dev-2025
 ```
 
 This tool transforms a manual, error-prone process into a reliable, automated workflow that scales as you work with more contractors while maintaining security and data privacy.

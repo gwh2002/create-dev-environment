@@ -264,6 +264,31 @@ gcloud logging sinks create risk-calculator-errors \
 
 ## 🔧 **Troubleshooting Common Issues**
 
+### Issue: "Project not visible in Google Cloud Console"
+```bash
+# If your project doesn't appear in the project selector dropdown:
+
+# 1. Verify the project exists via CLI
+gcloud projects list --filter="projectId:YOUR_PROJECT_ID"
+
+# 2. Check you're authenticated with the correct account
+gcloud auth list
+
+# 3. Access the project directly via URL
+# Replace YOUR_PROJECT_ID with your actual project ID:
+https://console.cloud.google.com/home/dashboard?project=YOUR_PROJECT_ID
+
+# 4. Once accessed via direct URL, the project should appear in your recent projects
+```
+
+**Common causes:**
+- Browser cache issues (try incognito mode)
+- Multiple Google accounts (ensure you're using the correct one)
+- Organization filters applied in the console
+- Project was just created (may take a few minutes to appear)
+
+**Quick fix:** Use the direct URL pattern above to access your project immediately.
+
 ### Issue: "Secret not found"
 ```bash
 # Verify secret exists

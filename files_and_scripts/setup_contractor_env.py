@@ -18,6 +18,7 @@ from typing import Dict, List, Optional
 import yaml
 from dataclasses import dataclass
 from datetime import datetime
+import re
 
 # Configure logging
 logging.basicConfig(
@@ -29,6 +30,148 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# NAMING SYSTEM CLASS
+class ResourceNaming:
+    """Centralized naming system for all GCP resources"""
+    
+    def __init__(self, contractor_name: str, project_id: str, organization_prefix: str = "bellaventure"):
+        self.contractor_name = contractor_name
+        self.project_id = project_id
+        self.organization_prefix = organization_prefix
+        
+        # Create safe versions of names for different contexts
+        self.contractor_name_safe = self._make_safe_name(contractor_name)
+        self.contractor_name_kebab = self._make_kebab_case(contractor_name)
+        self.contractor_name_snake = self._make_snake_case(contractor_name)
+    
+    def _make_safe_name(self, name: str) -> str:
+        """Make a name safe for GCP resources (alphanumeric + hyphens)"""
+        return re.sub(r'[^a-zA-Z0-9-]', '-', name.lower()).strip('-')
+    
+    def _make_kebab_case(self, name: str) -> str:
+        """Convert to kebab-case (lowercase with hyphens)"""
+        return re.sub(r'[^a-zA-Z0-9]+', '-', name.lower()).strip('-')
+    
+    def _make_snake_case(self, name: str) -> str:
+        """Convert to snake_case (lowercase with underscores)"""
+        return re.sub(r'[^a-zA-Z0-9]+', '_', name.lower()).strip('_')
+    
+    # Service Account Names (HARDCODED to match existing client environments)
+    @property
+    def service_account_name(self) -> str:
+        """Service account name (hardcoded for consistency with existing environments)"""
+        return f"contractor-{self.contractor_name_kebab}"
+    
+    @property
+    def service_account_email(self) -> str:
+        """Full service account email (hardcoded pattern for consistency)"""
+        return f"{self.service_account_name}@{self.project_id}.iam.gserviceaccount.com"
+    
+    @property
+    def service_account_display_name(self) -> str:
+        """Human-readable service account display name"""
+        return f"Service Account for {self.contractor_name}"
+    
+    # Secret Manager Names (HARDCODED to match existing client environments)
+    @property
+    def secret_name(self) -> str:
+        """Secret Manager secret name (hardcoded for client environment compatibility)"""
+        return "bellaventure_service_account_json"
+    
+    @property
+    def secret_name_contractor_specific(self) -> str:
+        """Contractor-specific secret name (if needed for dev environments)"""
+        return f"bellaventure_{self.contractor_name_snake}_service_account_json"
+    
+    # Cloud Run Names
+    @property
+    def cloud_run_service_name(self) -> str:
+        """Cloud Run service name"""
+        return f"{self.organization_prefix}-risk-calculator"
+    
+    @property
+    def cloud_run_service_name_contractor_specific(self) -> str:
+        """Contractor-specific Cloud Run service name"""
+        return f"{self.organization_prefix}-risk-calculator-{self.contractor_name_kebab}"
+    
+    # BigQuery Names
+    @property
+    def bigquery_dataset(self) -> str:
+        """BigQuery dataset name"""
+        return "warehouse"
+    
+    @property
+    def bigquery_dataset_contractor_specific(self) -> str:
+        """Contractor-specific BigQuery dataset name"""
+        return f"warehouse_{self.contractor_name_snake}"
+    
+    # GitHub Repository Names
+    @property
+    def github_repo_name(self) -> str:
+        """GitHub repository name"""
+        return f"contractor-{self.contractor_name_kebab}-dev"
+    
+    # File and Directory Names
+    @property
+    def temp_dir_prefix(self) -> str:
+        """Temporary directory prefix"""
+        return f"contractor_setup_{self.contractor_name_snake}_"
+    
+    @property
+    def instructions_filename(self) -> str:
+        """Contractor instructions filename"""
+        return f"contractor_instructions_{self.contractor_name_snake}.md"
+    
+    @property
+    def service_account_key_filename(self) -> str:
+        """Service account key filename"""
+        return "service-account-key.json"
+    
+    # Application Names
+    @property
+    def application_name(self) -> str:
+        """Application name for scripts and configs"""
+        return "risk_rating_calculator"
+    
+    # Log and Monitoring Names
+    @property
+    def log_sink_name(self) -> str:
+        """Cloud Logging sink name"""
+        return f"{self.organization_prefix}-risk-calculator-errors"
+    
+    @property
+    def monitoring_uptime_check_name(self) -> str:
+        """Cloud Monitoring uptime check name"""
+        return f"{self.organization_prefix} Risk Calculator Health Check"
+    
+    # Environment-specific variations
+    def get_environment_specific_names(self, environment: str = "dev") -> Dict[str, str]:
+        """Get environment-specific resource names"""
+        env_suffix = f"-{environment}" if environment != "dev" else ""
+        
+        return {
+            'cloud_run_service': f"{self.cloud_run_service_name}{env_suffix}",
+            'secret_name': f"{self.secret_name}{env_suffix.replace('-', '_')}",
+            'bigquery_dataset': f"{self.bigquery_dataset}{env_suffix.replace('-', '_')}",
+        }
+    
+    def get_all_names(self) -> Dict[str, str]:
+        """Get all resource names as a dictionary for easy reference"""
+        return {
+            'contractor_name_safe': self.contractor_name_safe,
+            'contractor_name_kebab': self.contractor_name_kebab,
+            'contractor_name_snake': self.contractor_name_snake,
+            'service_account_name': self.service_account_name,
+            'service_account_email': self.service_account_email,
+            'service_account_display_name': self.service_account_display_name,
+            'secret_name': self.secret_name,
+            'cloud_run_service_name': self.cloud_run_service_name,
+            'bigquery_dataset': self.bigquery_dataset,
+            'github_repo_name': self.github_repo_name,
+            'application_name': self.application_name,
+            'instructions_filename': self.instructions_filename,
+        }
 
 # CONTRACTOR CONFIG CLASS
 @dataclass
@@ -50,14 +193,24 @@ class ContractorEnvironmentSetup:
     
     def __init__(self, config: ContractorConfig):
         self.config = config
-        self.service_account_email = f"contractor-{config.contractor_name.lower().replace(' ', '-')}@{config.project_id}.iam.gserviceaccount.com"
+        
+        # Initialize the naming system
+        self.naming = ResourceNaming(
+            contractor_name=config.contractor_name,
+            project_id=config.project_id,
+            organization_prefix="bellaventure"  # Could be made configurable
+        )
+        
+        # Use naming system for all resource names
+        self.service_account_email = self.naming.service_account_email
         
         # Create temporary directory for this setup
-        contractor_name_safe = config.contractor_name.replace(' ', '_').replace('-', '_')
-        self.temp_dir = tempfile.mkdtemp(prefix=f"contractor_setup_{contractor_name_safe}_")
-        self.service_account_key_path = os.path.join(self.temp_dir, "service-account-key.json")
+        self.temp_dir = tempfile.mkdtemp(prefix=self.naming.temp_dir_prefix)
+        self.service_account_key_path = os.path.join(self.temp_dir, self.naming.service_account_key_filename)
         
         logger.info(f"Created temporary directory: {self.temp_dir}")
+        logger.info(f"Using naming system - Service Account: {self.service_account_email}")
+        logger.info(f"Resource names: {self.naming.get_all_names()}")
         
     def setup_environment(self) -> Dict[str, str]:
         """
@@ -173,9 +326,9 @@ class ContractorEnvironmentSetup:
     
     def _create_service_account(self):
         """Create service account with necessary permissions"""
-        sa_name = f"contractor-{self.config.contractor_name.lower().replace(' ', '-')}"
-        sa_display_name = f"Service Account for {self.config.contractor_name}"
-        self.service_account_email = f"{sa_name}@{self.config.project_id}.iam.gserviceaccount.com"
+        sa_name = self.naming.service_account_name
+        sa_display_name = self.naming.service_account_display_name
+        self.service_account_email = self.naming.service_account_email
         
         # Check if service account already exists
         try:
@@ -232,7 +385,7 @@ class ContractorEnvironmentSetup:
     
     def _create_secret_manager_secret(self):
         """Create Secret Manager secret with the service account key"""
-        secret_name = "bellaventure_service_account_json"
+        secret_name = self.naming.secret_name
         
         logger.info(f"Creating Secret Manager secret: {secret_name}")
         
@@ -308,39 +461,91 @@ class ContractorEnvironmentSetup:
             logger.info(f"BigQuery dataset {self.config.target_dataset} may already exist")
     
     def _copy_and_anonymize_data(self):
-        """Copy data from production to dev environment with anonymization"""
-        logger.info("Copying and anonymizing data from production environment")
+        """Copy data from production to dev environment using custom SQL templates"""
+        logger.info("Copying data from production environment using custom SQL templates")
         
-        # First, copy the canonical company names table for anonymization
-        self._copy_canonical_names_table()
+        # Load master config to get table copy configurations
+        master_config = self._load_master_config()
+        table_copy_configs = master_config.get('table_copy_configs', {})
         
-        # Copy each specified table with anonymization
+        # Copy each specified table using its custom SQL template
         for table_name in self.config.tables_to_copy:
-            self._copy_table_with_anonymization(table_name)
+            self._copy_table_using_template(table_name, table_copy_configs)
         
-        logger.info("Data copying and anonymization completed")
+        logger.info("Data copying completed using custom SQL templates")
     
-    def _copy_canonical_names_table(self):
-        """Copy the canonical company names table for anonymization"""
-        source_table = f"{self.config.source_project}.{self.config.source_dataset}.canonical_company_names_sa"
-        target_table = f"{self.config.project_id}.{self.config.target_dataset}.canonical_company_names_sa"
+    def _copy_table_using_template(self, table_name: str, table_copy_configs: dict):
+        """Copy a table using the specified SQL template"""
+        # Get the configuration for this table
+        table_config = table_copy_configs.get(table_name, {})
+        query_template = table_config.get('query_template', 'copy_direct.sql')  # Default to simple copy
+        description = table_config.get('description', f'Copy of {table_name}')
+        
+        logger.info(f"Copying table '{table_name}' using template '{query_template}': {description}")
+        
+        # Load the SQL template
+        template_path = os.path.join('queries', query_template)
+        if not os.path.exists(template_path):
+            logger.warning(f"Query template not found: {template_path}. Using direct copy.")
+            # Fallback to simple copy
+            self._copy_table_direct(table_name)
+            return
+        
+        with open(template_path, 'r') as f:
+            query_template_content = f.read()
+        
+        # Prepare template parameters
+        source_table = f"{self.config.source_project}.{self.config.source_dataset}.{table_name}"
+        target_table = f"{self.config.project_id}.{self.config.target_dataset}.{table_name}"
+        
+        # Replace parameters in the template
+        query = query_template_content.format(
+            source_table=source_table,
+            target_table=target_table,
+            source_project=self.config.source_project,
+            source_dataset=self.config.source_dataset,
+            target_project=self.config.project_id,
+            target_dataset=self.config.target_dataset,
+            table_name=table_name
+        )
+        
+        # Execute the query
+        try:
+            self._run_bigquery_query(query, f"Failed to copy table: {table_name}")
+            logger.info(f"Successfully copied table: {table_name}")
+        except Exception as e:
+            logger.error(f"Failed to copy table {table_name} using template {query_template}: {e}")
+            # Fallback to simple copy
+            logger.info(f"Falling back to direct copy method for {table_name}")
+            self._copy_table_direct(table_name)
+    
+    def _copy_table_direct(self, table_name: str):
+        """Fallback method: Direct copy without any transformation"""
+        source_table = f"{self.config.source_project}.{self.config.source_dataset}.{table_name}"
+        target_table = f"{self.config.project_id}.{self.config.target_dataset}.{table_name}"
         
         query = f"CREATE OR REPLACE TABLE `{target_table}` AS SELECT * FROM `{source_table}`"
         
-        self._run_bigquery_query(query, "Failed to copy canonical company names table")
+        self._run_bigquery_query(query, f"Failed to copy table: {table_name}")
+        logger.info(f"Copied table directly: {table_name}")
+    
+    def _copy_canonical_names_table(self):
+        """Copy the canonical company names table for anonymization - DEPRECATED"""
+        logger.warning("_copy_canonical_names_table is deprecated - using template-based copying")
+        # This method is now handled by _copy_table_using_template
+        pass
     
     def _copy_table_with_anonymization(self, table_name: str):
-        """Copy a table from production with company name anonymization"""
+        """Copy a table from production with company name anonymization - DEPRECATED"""
+        logger.warning("_copy_table_with_anonymization is deprecated - using template-based copying")
+        # This method is now handled by _copy_table_using_template
+        pass
+    
+    def _copy_table_with_anonymization_fallback(self, table_name: str):
+        """Fallback method: Copy a table from production with company name anonymization"""
         source_table = f"{self.config.source_project}.{self.config.source_dataset}.{table_name}"
         target_table = f"{self.config.project_id}.{self.config.target_dataset}.{table_name}"
         canonical_table = f"{self.config.project_id}.{self.config.target_dataset}.canonical_company_names_sa"
-        
-        # Check if the source table has a company_name column
-        schema_query = f"""
-        SELECT column_name 
-        FROM `{self.config.source_project}.{self.config.source_dataset}.INFORMATION_SCHEMA.COLUMNS`
-        WHERE table_name = '{table_name}' AND column_name = 'company_name'
-        """
         
         # For tables with company_name, apply anonymization
         query = f"""
@@ -358,11 +563,11 @@ class ContractorEnvironmentSetup:
         """
         
         self._run_bigquery_query(query, f"Failed to copy table: {table_name}")
-        logger.info(f"Copied and anonymized table: {table_name}")
+        logger.info(f"Copied and anonymized table: {table_name} (fallback method)")
     
     def _create_github_repo(self) -> str:
         """Create GitHub repository and upload contractor files"""
-        repo_name = f"contractor-{self.config.contractor_name.lower().replace(' ', '-')}-dev"
+        repo_name = self.naming.github_repo_name
         
         # Get GitHub owner from master config
         master_config = self._load_master_config()
@@ -581,104 +786,28 @@ If you have any questions or issues:
 2. Check the troubleshooting section above
 3. Contact: greg@bellaventure.co
 
+## Troubleshooting
+
+### Google Cloud Console Access
+
+If your project doesn't appear in the Google Cloud Console project selector:
+
+1. **Verify you're using the correct Google account** - Make sure you're logged into the console with the same account that has access to the project
+2. **Access the project directly** using this URL:
+   ```
+   https://console.cloud.google.com/home/dashboard?project={self.config.project_id}
+   ```
+3. **Clear browser cache** or try an incognito/private window
+4. **Check recent projects** - After accessing via direct URL, the project should appear in your recent projects list
+
+### Common Issues
+
+- **Permission denied**: Ensure you're authenticated with the correct Google account
+- **BigQuery table not found**: Verify you're using the correct project ID in your code
+- **Import errors**: Run `pip install -r requirements.txt` to install all dependencies
+
 ---
-
-**Note**: This environment is designed for easy portability. The same code you develop here will work seamlessly in production environments with minimal configuration changes.
-
-## 📦 **DELIVERABLE: Production Deployment Package**
-
-Your final deliverable should be a complete, production-ready package that can be deployed to the client's Google Cloud environment. This repository is already configured for this purpose.
-
-### What You Need to Deliver
-
-1. **Complete, tested code** in this repository
-2. **All deployment files** (already included):
-   - `Dockerfile` - Production-ready container configuration
-   - `deploy.sh` - Automated deployment script
-   - `requirements.txt` - All dependencies
-   - `.dockerignore` - Optimized build context
-
-### Final Deliverable Checklist
-
-Before marking your work complete, ensure:
-
-- [ ] **Code works in development environment** (`python risk_rating_calculator.py`)
-- [ ] **All tests pass** and functionality is verified
-- [ ] **Dependencies are up to date** in `requirements.txt`
-- [ ] **Code is well-documented** with comments and docstrings
-- [ ] **README is updated** with any new features or requirements
-- [ ] **Docker build works** (`docker build -t risk-calculator .`)
-- [ ] **No hardcoded values** - all configuration uses environment variables
-- [ ] **Service account key is NOT committed** (it's in `.dockerignore`)
-
-### Client Deployment Process
-
-The client will follow these steps to deploy your code:
-
-1. **Copy your repository** to their organization
-2. **Create Secret Manager secret** in their production project:
-   ```bash
-   gcloud secrets create bellaventure_service_account_json \\
-     --project=CLIENT_PROJECT_ID \\
-     --data-file=path/to/their/service-account-key.json
-   ```
-3. **Run deployment script**:
-   ```bash
-   export GOOGLE_CLOUD_PROJECT=CLIENT_PROJECT_ID
-   ./deploy.sh
-   ```
-
-That's it! Your code will automatically:
-- ✅ Use their Secret Manager for credentials
-- ✅ Connect to their BigQuery datasets
-- ✅ Deploy to their Cloud Run environment
-- ✅ Scale automatically based on demand
-
-### Testing Your Deliverable
-
-Run the comprehensive test suite to verify everything is working:
-
-```bash
-python test_deployment.py
-```
-
-This will test:
-- ✅ All required packages can be imported
-- ✅ Credentials load correctly
-- ✅ Docker files are present and valid
-- ✅ BigQuery connection works
-- ✅ Flask app starts and responds to health checks
-
-All tests must pass before submitting your deliverable.
-
-### 🚀 **Deploying to Cloud Run (Development Testing)**
-
-To test your deployment in this development environment:
-
-```bash
-# Set the project environment variable
-export GOOGLE_CLOUD_PROJECT={self.config.project_id}
-
-# Deploy to Cloud Run
-./deploy.sh
-```
-
-The deployment script will automatically:
-- ✅ Set the correct quota project to avoid billing warnings
-- ✅ Enable required APIs
-- ✅ Verify Secret Manager configuration
-- ✅ Build and deploy your container
-- ✅ Grant you permission to invoke the service
-- ✅ Provide authenticated curl commands for testing
-
-After deployment, you can test the service with:
-```bash
-# Health check
-curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" SERVICE_URL/health
-
-# Process endpoint
-curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" SERVICE_URL/process
-```
+Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
         
         with open(os.path.join(repo_path, "README.md"), 'w') as f:
@@ -751,10 +880,10 @@ CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 risk_rating_
 set -e
 
 # Configuration - UPDATE THESE VALUES FOR YOUR ENVIRONMENT
-PROJECT_ID="${{GOOGLE_CLOUD_PROJECT:-{self.config.source_project}}}"
-SERVICE_NAME="risk-rating-calculator"
-REGION="us-central1"
-SECRET_NAME="bellaventure_service_account_json"
+PROJECT_ID="${{GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project)}}"
+SERVICE_NAME="${{SERVICE_NAME:-{self.naming.cloud_run_service_name}}}"
+REGION="${{REGION:-us-central1}}"
+SECRET_NAME="${{SECRET_NAME:-{self.naming.secret_name}}}"
 
 echo "🚀 Deploying Risk Rating Calculator to Cloud Run"
 echo "Project: $PROJECT_ID"
@@ -1118,7 +1247,7 @@ if __name__ == "__main__":
     
     def _generate_contractor_instructions(self) -> str:
         """Generate detailed instructions for the contractor"""
-        instructions_path = f"contractor_instructions_{self.config.contractor_name.replace(' ', '_')}.md"
+        instructions_path = self.naming.instructions_filename
         
         instructions = f"""# Contractor Setup Instructions - {self.config.contractor_name}
 
@@ -1178,6 +1307,26 @@ Please ensure your final code:
 For any questions or issues, please:
 1. Create an issue in the GitHub repository
 2. Email: [YOUR_EMAIL]
+
+## Troubleshooting
+
+### Google Cloud Console Access
+
+If your project doesn't appear in the Google Cloud Console project selector:
+
+1. **Verify you're using the correct Google account** - Make sure you're logged into the console with the same account that has access to the project
+2. **Access the project directly** using this URL:
+   ```
+   https://console.cloud.google.com/home/dashboard?project={self.config.project_id}
+   ```
+3. **Clear browser cache** or try an incognito/private window
+4. **Check recent projects** - After accessing via direct URL, the project should appear in your recent projects list
+
+### Common Issues
+
+- **Permission denied**: Ensure you're authenticated with the correct Google account
+- **BigQuery table not found**: Verify you're using the correct project ID in your code
+- **Import errors**: Run `pip install -r requirements.txt` to install all dependencies
 
 ---
 Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
